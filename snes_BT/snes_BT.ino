@@ -25,7 +25,7 @@
 ////////////////////////
 
 #define BUFFER_LENGTH    3     // 3 bytes gives us 24 samples
-#define NUM_INPUTS       18    // 6 on the front + 12 on the back
+#define NUM_INPUTS       12    // 6 on the front + 12 on the back
 //#define TARGET_LOOP_TIME 694   // (1/60 seconds) / 24 samples = 694 microseconds per sample 
 //#define TARGET_LOOP_TIME 758  // (1/55 seconds) / 24 samples = 758 microseconds per sample 
 #define TARGET_LOOP_TIME 744  // (1/56 seconds) / 24 samples = 744 microseconds per sample 
@@ -37,8 +37,8 @@
 #define MOUSE_MOVE_RIGHT    -4
 
 #include "settings.h"
-#include <SoftwareSerial.h>
 #include "makeyMate.h"
+#include <SNESpad.h>
 
 /////////////////////////
 // STRUCT ///////////////
@@ -74,12 +74,12 @@ int mouseHoldCount[NUM_INPUTS]; // used to store mouse movement hold data
 
 // Pin Numbers
 // input pin numbers for kickstarter production board
-const int pinNumbers[NUM_INPUTS] = 
-{
-  12, 8, 13, 15, 7, 6,     // top of makey makey board up, down, left, right, space, click
-  5, 4, 3, 2, 1, 0,        // left side of female header, KEBYBOARD - w, a, s, d, f, g
-  23, 22, 21, 20, 19, 18   // right side of female header, MOUSE - up, down, left, right, left click, right click
-};
+//const int pinNumbers[NUM_INPUTS] = 
+//{
+//  12, 8, 13, 15, 7, 6,     // top of makey makey board up, down, left, right, space, click
+//  5, 4, 3, 2, 1, 0,        // left side of female header, KEBYBOARD - w, a, s, d, f, g
+//  23, 22, 21, 20, 19, 18   // right side of female header, MOUSE - up, down, left, right, left click, right click
+//};
 
 // input status LED pin numbers
 const int inputLED_a = 9;
@@ -124,18 +124,22 @@ int sequenceIndex = 0;
 int sequenceInterval = 1000;  // in ms
 int resetSequence[SEQUENCE_LENGTH] = {0, 1, 2, 3, 4, 5};  // u->d->l->r->space->click
 
+SNESpad nintendo = SNESpad(2,3,4);
+int state = 0;
+
 //////////////////////
 // SETUP /////////////
 //////////////////////
 
 void setup() 
 {
-  initializeArduino();
-  initializeInputs();
-  danceLeds();
+  //initializeArduino();
+  //initializeInputs();
+  //danceLeds();
   
   makeyMate.begin(makeyMateName);  // Initialize the bluetooth mate
   makeyMate.connect();  // Attempt to connect to a stored remote address
+  Serial.begin(115200);
 }
 
 ////////////////////
@@ -143,15 +147,18 @@ void setup()
 ////////////////////
 void loop() 
 {
-  updateMeasurementBuffers();  // Step 1: read inputs, update measurementBuffer
-  updateBufferSums();  // Step 2: update bufferSum, remove old measruement, add new
-  updateBufferIndex();  // Step 3: update bitCounter and byteCounter
-  updateInputStates();  // Step 4: check/update pressed/released states, send button presses/releases
-  sendMouseButtonEvents();  // Step 5: Send mouse button click/releases
-  sendMouseMovementEvents(); // Step 6: Send mouse movement
-  cycleLEDs();  // Step 7: Update U/D/L/R/Space/Click LEDs
-  updateOutLEDs();  // Step 8: Update output LEDs (K/M)
-  addDelay();
+  //updateMeasurementBuffers();  // Step 1: read inputs, update measurementBuffer
+  //updateBufferSums();  // Step 2: update bufferSum, remove old measruement, add new
+  //updateBufferIndex();  // Step 3: update bitCounter and byteCounter
+  //updateInputStates();  // Step 4: check/update pressed/released states, send button presses/releases
+  //sendMouseButtonEvents();  // Step 5: Send mouse button click/releases
+  //sendMouseMovementEvents(); // Step 6: Send mouse movement
+  //cycleLEDs();  // Step 7: Update U/D/L/R/Space/Click LEDs
+  //updateOutLEDs();  // Step 8: Update output LEDs (K/M)
+  //addDelay();
+  state = nintendo.buttons();
+  Serial.println(~state, BIN);
+  delay(500);
 }
 
 
@@ -159,71 +166,71 @@ void loop()
 // INITIALIZE ARDUINO ////
 /////// Setup ////////////
 //////////////////////////
-void initializeArduino() 
-{
-  /* Set up input pins 
-   DEactivate the internal pull-ups, since we're using external resistors */
-  for (int i=0; i<NUM_INPUTS; i++)
-  {
-    pinMode(pinNumbers[i], INPUT);
-    digitalWrite(pinNumbers[i], LOW);
-  }
-
-  pinMode(inputLED_a, INPUT);
-  pinMode(inputLED_b, INPUT);
-  pinMode(inputLED_c, INPUT);
-  digitalWrite(inputLED_a, LOW);
-  digitalWrite(inputLED_b, LOW);
-  digitalWrite(inputLED_c, LOW);
-}
+//void initializeArduino() 
+//{
+//  /* Set up input pins 
+//   DEactivate the internal pull-ups, since we're using external resistors */
+//  for (int i=0; i<NUM_INPUTS; i++)
+//  {
+//    pinMode(pinNumbers[i], INPUT);
+//    digitalWrite(pinNumbers[i], LOW);
+//  }
+//
+//  pinMode(inputLED_a, INPUT);
+//  pinMode(inputLED_b, INPUT);
+//  pinMode(inputLED_c, INPUT);
+//  digitalWrite(inputLED_a, LOW);
+//  digitalWrite(inputLED_b, LOW);
+//  digitalWrite(inputLED_c, LOW);
+//}
 
 ///////////////////////////
 // INITIALIZE INPUTS //////
 ////// Setup //////////////
 ///////////////////////////
-void initializeInputs() {
-
-  float thresholdPerc = SWITCH_THRESHOLD_OFFSET_PERC;
-  float thresholdCenterBias = SWITCH_THRESHOLD_CENTER_BIAS/50.0;
-  float pressThresholdAmount = (BUFFER_LENGTH * 8) * (thresholdPerc / 100.0);
-  float thresholdCenter = ( (BUFFER_LENGTH * 8) / 2.0 ) * (thresholdCenterBias);
-  pressThreshold = int(thresholdCenter + pressThresholdAmount);
-  releaseThreshold = int(thresholdCenter - pressThresholdAmount);
-
-  for (int i=0; i<NUM_INPUTS; i++)
-  {
-    inputs[i].pinNumber = pinNumbers[i];
-    inputs[i].keyCode = keyCodes[i];
-
-    for (int j=0; j<BUFFER_LENGTH; j++)
-    {
-      inputs[i].measurementBuffer[j] = 0;
-    }
-    inputs[i].oldestMeasurement = 0;
-    inputs[i].bufferSum = 0;
-
-    inputs[i].pressed = false;
-    inputs[i].prevPressed = false;
-
-    inputs[i].isMouseMotion = false;
-    inputs[i].isMouseButton = false;
-    inputs[i].isKey = false;
-
-    if (inputs[i].keyCode < 0)
-    {
-      inputs[i].isMouseMotion = true;
-    } 
-    else if ((inputs[i].keyCode == MOUSE_LEFT) || (inputs[i].keyCode == MOUSE_RIGHT))
-    {
-      inputs[i].isMouseButton = true;
-    } 
-    else
-    {
-      inputs[i].isKey = true;
-    }
-
-  }
-}
+//void initializeInputs() {
+//
+//  float thresholdPerc = SWITCH_THRESHOLD_OFFSET_PERC;
+//  float thresholdCenterBias = SWITCH_THRESHOLD_CENTER_BIAS/50.0;
+//  float pressThresholdAmount = (BUFFER_LENGTH * 8) * (thresholdPerc / 100.0);
+//  float thresholdCenter = ( (BUFFER_LENGTH * 8) / 2.0 ) * (thresholdCenterBias);
+//  pressThreshold = int(thresholdCenter + pressThresholdAmount);
+//  releaseThreshold = int(thresholdCenter - pressThresholdAmount);
+//
+//  for (int i=0; i<NUM_INPUTS; i++)
+//  {
+//    inputs[i].pinNumber = pinNumbers[i];
+//    inputs[i].keyCode = keyCodes[i];
+//
+//    for (int j=0; j<BUFFER_LENGTH; j++)
+//    {
+//      inputs[i].measurementBuffer[j] = 0;
+//    }
+//    inputs[i].oldestMeasurement = 0;
+//    inputs[i].bufferSum = 0;
+//
+//    inputs[i].pressed = false;
+//    inputs[i].prevPressed = false;
+//
+//    inputs[i].isMouseMotion = false;
+//    inputs[i].isMouseButton = false;
+//    inputs[i].isKey = false;
+//
+//    if (inputs[i].keyCode < 0)
+//    {
+//      inputs[i].isMouseMotion = true;
+//    } 
+//    else if ((inputs[i].keyCode == MOUSE_LEFT) || (inputs[i].keyCode == MOUSE_RIGHT))
+//    {
+//      inputs[i].isMouseButton = true;
+//    } 
+//    else
+//    {
+//      inputs[i].isKey = true;
+//    }
+//
+//  }
+//}
 
 ////////////////////////////////
 // UPDATE MEASUREMENT BUFFERS //

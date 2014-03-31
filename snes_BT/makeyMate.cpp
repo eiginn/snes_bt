@@ -33,7 +33,7 @@ makeyMateClass::makeyMateClass()
    *name* parameter. */
 uint8_t makeyMateClass::begin(char * name)
 {
-  bluetooth.begin(9600);  // Initialize the software serial port at 9600
+  Serial1.begin(9600);  // Initialize the software serial port at 9600
   freshStart();  // Get the module into a known mode, non-command mode, not connected
 
   while (!enterCommandMode())  // Enter command mode
@@ -53,7 +53,7 @@ uint8_t makeyMateClass::begin(char * name)
   
   /* These I wouldn't recommend changing. These settings are required for HID
      use and sending Keyboard and Mouse commands */
-  setKeyboardMouseMode();  // bluetooth.println("SH,0030");
+  setKeyboardMouseMode();  // Serial1.println("SH,0030");
     
   // We must reboot if we're changing the mode to HID mode.
   // If you've already have the module in HID mode, this can be commented out
@@ -74,9 +74,9 @@ uint8_t makeyMateClass::begin(char * name)
    returns a 1 if command mode was successful, 0 otherwise */
 uint8_t makeyMateClass::enterCommandMode(void)
 {	 	
-  bluetooth.flush();  // Get rid of any characters in the buffer, we'll need to check it fresh
-  bluetooth.print("$$$");  // Command mode string
-  bluetooth.write('\r');  // Will give us the ?, if we're already in command mode
+  Serial1.flush();  // Get rid of any characters in the buffer, we'll need to check it fresh
+  Serial1.print("$$$");  // Command mode string
+  Serial1.write('\r');  // Will give us the ?, if we're already in command mode
   delay(BLUETOOTH_RESPONSE_DELAY);
   bluetoothReceive(rxBuffer);  // receive all response chars into rxBuffer
 
@@ -94,9 +94,9 @@ uint8_t makeyMateClass::enterCommandMode(void)
    The module MUST BE IN COMMAND MODE for this function to work! */
 uint8_t makeyMateClass::getHIDMode(void)
 {
-  bluetooth.flush();
-  bluetooth.print("G~");  // '~' is the RN-42's HID/SPP set command
-  bluetooth.write('\r');
+  Serial1.flush();
+  Serial1.print("G~");  // '~' is the RN-42's HID/SPP set command
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   bluetoothReceive(rxBuffer);  // receive all response chars into rxBuffer
 
@@ -117,47 +117,47 @@ uint8_t makeyMateClass::getHIDMode(void)
 void makeyMateClass::freshStart(void)
 {
   int timeout = 1000;  // timeout, in the rare case the module is unresponsive
-  bluetooth.write((uint8_t) 0);	// Disconnects, if connected
+  Serial1.write((uint8_t) 0);	// Disconnects, if connected
   delay(BLUETOOTH_RESPONSE_DELAY);
   
-  bluetooth.flush();  // delete buffer contents
-  bluetooth.print("$$$");  // Command mode string
+  Serial1.flush();  // delete buffer contents
+  Serial1.print("$$$");  // Command mode string
   do // This gets the module out of state 3
   {  // continuously send \r until there is a response, usually '?'
-    bluetooth.write('\r');  
+    Serial1.write('\r');  
     Serial.print("-");  // Debug info for how many \r's required to get a respsonse
-  } while ((!bluetooth.available()) && (timeout-- > 0));
+  } while ((!Serial1.available()) && (timeout-- > 0));
   
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());
+  while (Serial1.available())
+    Serial.write(Serial1.read());
   delay(BLUETOOTH_RESPONSE_DELAY);
-  bluetooth.flush();  // delay and flush the receive buffer
+  Serial1.flush();  // delay and flush the receive buffer
   
-  bluetooth.print("---");  // exit command mode
-  bluetooth.write('\r');
+  Serial1.print("---");  // exit command mode
+  Serial1.write('\r');
   delay(BLUETOOTH_RESET_DELAY);  // longer delay
-  bluetooth.flush();  // Flush the receive buffer
+  Serial1.flush();  // Flush the receive buffer
 }
 
 /* This command will set the RN-42 HID output to Mouse/Keyboard combo mode */
 uint8_t makeyMateClass::setKeyboardMouseMode(void)
 {	
-  if (bluetooth.available())
-    bluetooth.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
+  if (Serial1.available())
+    Serial1.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
 
-    bluetooth.print("SH,0030");
-  bluetooth.write('\r');
+    Serial1.print("SH,0030");
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   bluetoothReceive(rxBuffer);
 
   /* Double check the setting, output results in Serial monitor */
-  bluetooth.flush();
-  bluetooth.print("GH");
-  bluetooth.write('\r');
+  Serial1.flush();
+  Serial1.print("GH");
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   Serial.print("HID Mode set to: ");
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());
+  while (Serial1.available())
+    Serial.write(Serial1.read());
 
   return bluetoothCheckReceive(rxBuffer, "AOK", 3);
 }
@@ -166,22 +166,22 @@ uint8_t makeyMateClass::setKeyboardMouseMode(void)
    Requires a reboot to take effect! */
 uint8_t makeyMateClass::setHIDMode(void)
 {
-  if (bluetooth.available())
-    bluetooth.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
+  if (Serial1.available())
+    Serial1.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
 
-    bluetooth.print("S~,6");  // Bluetooth HID Mode
-  bluetooth.write('\r');
+    Serial1.print("S~,6");  // Bluetooth HID Mode
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   bluetoothReceive(rxBuffer);
 
   /* Double check the setting, output results in Serial monitor */
-  bluetooth.flush();
-  bluetooth.print("G~");
-  bluetooth.write('\r');
+  Serial1.flush();
+  Serial1.print("G~");
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   Serial.print("Profile set to: ");
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());
+  while (Serial1.available())
+    Serial.write(Serial1.read());
 
   return bluetoothCheckReceive(rxBuffer, "AOK", 3);
 }
@@ -201,24 +201,24 @@ uint8_t makeyMateClass::setHIDMode(void)
       inquiry, the first device found is connected. Address is never stored. */
 uint8_t makeyMateClass::setMode(uint8_t mode)
 {
-  if (bluetooth.available())
-    bluetooth.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
+  if (Serial1.available())
+    Serial1.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
 
-    bluetooth.print("SM,");  // SM sets mode
-  bluetooth.print(mode);  // Should automatically print ASCII  vaule
-  bluetooth.write('\r');
+    Serial1.print("SM,");  // SM sets mode
+  Serial1.print(mode);  // Should automatically print ASCII  vaule
+  Serial1.write('\r');
 
   delay(BLUETOOTH_RESPONSE_DELAY);  // Response will go to software serial buffer
   bluetoothReceive(rxBuffer);
 
   /* Double check the setting, output results in Serial monitor */
-  bluetooth.flush();
-  bluetooth.print("GM");
-  bluetooth.write('\r');
+  Serial1.flush();
+  Serial1.print("GM");
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   Serial.print("Mode set to: ");
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());
+  while (Serial1.available())
+    Serial.write(Serial1.read());
 
   return bluetoothCheckReceive(rxBuffer, "AOK", 3);  
 }
@@ -233,24 +233,24 @@ uint8_t makeyMateClass::setMode(uint8_t mode)
    Most of these are not recommended, but the low-latency is useful. */
 uint8_t makeyMateClass::setSpecialConfig(uint8_t num)
 {
-  if (bluetooth.available())
-    bluetooth.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
+  if (Serial1.available())
+    Serial1.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
 
-    bluetooth.print("SQ,");  // SQ sets special config
-  bluetooth.print(num);  // Should print ASCII decimal vaule
-  bluetooth.write('\r');
+    Serial1.print("SQ,");  // SQ sets special config
+  Serial1.print(num);  // Should print ASCII decimal vaule
+  Serial1.write('\r');
 
   delay(BLUETOOTH_RESPONSE_DELAY);  // Response will go to software serial buffer
   bluetoothReceive(rxBuffer);
 
   /* Double check the setting, output results in Serial monitor */
-  bluetooth.flush();
-  bluetooth.print("GQ");
-  bluetooth.write('\r');
+  Serial1.flush();
+  Serial1.print("GQ");
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   Serial.print("Special Config set to: ");
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());
+  while (Serial1.available())
+    Serial.write(Serial1.read());
 
   return bluetoothCheckReceive(rxBuffer, "AOK", 3);  
 }
@@ -262,24 +262,24 @@ uint8_t makeyMateClass::setSpecialConfig(uint8_t num)
    "8xxx" = Enables deep sleep mode */
 uint8_t makeyMateClass::setSleepMode(char * sleepConfig)
 {
-  if (bluetooth.available())
-    bluetooth.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
+  if (Serial1.available())
+    Serial1.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
 
-    bluetooth.print("SW,");  // SW sets the sniff mode
-  bluetooth.print(sleepConfig);  // Should print ASCII vaule
-  bluetooth.write('\r');
+    Serial1.print("SW,");  // SW sets the sniff mode
+  Serial1.print(sleepConfig);  // Should print ASCII vaule
+  Serial1.write('\r');
 
   delay(BLUETOOTH_RESPONSE_DELAY);  // Response will go to software serial buffer
   bluetoothReceive(rxBuffer);
 
   /* Double check the setting, output results in Serial monitor */
-  bluetooth.flush();
-  bluetooth.print("GW");
-  bluetooth.write('\r');
+  Serial1.flush();
+  Serial1.print("GW");
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   Serial.print("Deep Sleep Mode set to: ");
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());
+  while (Serial1.available())
+    Serial.write(Serial1.read());
 
   return bluetoothCheckReceive(rxBuffer, "AOK", 3);
 }
@@ -290,24 +290,24 @@ uint8_t makeyMateClass::setSleepMode(char * sleepConfig)
    1: Enabled */
 uint8_t makeyMateClass::setAuthentication(uint8_t authMode)
 {
-  if (bluetooth.available())
-    bluetooth.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
+  if (Serial1.available())
+    Serial1.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
 
-    bluetooth.print("SA,");  // SA sets the authentication
-  bluetooth.print(authMode);  // Should print ASCII vaule
-  bluetooth.write('\r');
+    Serial1.print("SA,");  // SA sets the authentication
+  Serial1.print(authMode);  // Should print ASCII vaule
+  Serial1.write('\r');
 
   delay(BLUETOOTH_RESPONSE_DELAY);  // Response will go to software serial buffer
   bluetoothReceive(rxBuffer);
 
   /* Double check the setting, output results in Serial monitor */
-  bluetooth.flush();
-  bluetooth.print("GA");
-  bluetooth.write('\r');
+  Serial1.flush();
+  Serial1.print("GA");
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   Serial.print("Authentication Mode set to: ");
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());
+  while (Serial1.available())
+    Serial.write(Serial1.read());
 
   return bluetoothCheckReceive(rxBuffer, "AOK", 3);
 }
@@ -317,30 +317,30 @@ uint8_t makeyMateClass::setAuthentication(uint8_t authMode)
    \r character */
 uint8_t makeyMateClass::setName(char * name)
 {
-  if (bluetooth.available())
-    bluetooth.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
+  if (Serial1.available())
+    Serial1.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
 
-  bluetooth.print("SN,");
+  Serial1.print("SN,");
   for (int i=0; i<20; i++)
   {
     if (name[i] != '\r')
-      bluetooth.write(name[i]);
+      Serial1.write(name[i]);
     else
       break;
   }
-  bluetooth.write('\r');
+  Serial1.write('\r');
   
   delay(BLUETOOTH_RESPONSE_DELAY);
   bluetoothReceive(rxBuffer);
 
   /* Double check the setting, output results in Serial monitor */
-  bluetooth.flush();
-  bluetooth.print("GN");
-  bluetooth.write('\r');
+  Serial1.flush();
+  Serial1.print("GN");
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   Serial.print("Name set to: ");
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());
+  while (Serial1.available())
+    Serial.write(Serial1.read());
 
   return bluetoothCheckReceive(rxBuffer, "AOK", 3);
 }
@@ -351,13 +351,13 @@ uint8_t makeyMateClass::setName(char * name)
    parameters (x and y). */
 void makeyMateClass::moveMouse(uint8_t b, uint8_t x, uint8_t y)
 {
-  bluetooth.write(0xFD);  // Send a RAW report
-  bluetooth.write(5);  // length
-  bluetooth.write(2);  // indicates a Mouse raw report
-  bluetooth.write((byte) b);  // buttons
-  bluetooth.write((byte) x);  // x movement
-  bluetooth.write((byte) y);  // y movement
-  bluetooth.write((byte) 0);  // wheel movement NOT YET IMPLEMENTED
+  Serial1.write(0xFD);  // Send a RAW report
+  Serial1.write(5);  // length
+  Serial1.write(2);  // indicates a Mouse raw report
+  Serial1.write((byte) b);  // buttons
+  Serial1.write((byte) x);  // x movement
+  Serial1.write((byte) y);  // y movement
+  Serial1.write((byte) 0);  // wheel movement NOT YET IMPLEMENTED
 }
 
 /* This function sends a key press down. An array of pressed keys is 
@@ -412,12 +412,12 @@ uint8_t makeyMateClass::keyPress(uint8_t k)
     }	
   }
 
-  bluetooth.write(0xFE);	// Keyboard Shorthand Mode
-  bluetooth.write(0x07);	// Length
-  bluetooth.write(modifiers);	// Modifiers
+  Serial1.write(0xFE);	// Keyboard Shorthand Mode
+  Serial1.write(0x07);	// Length
+  Serial1.write(modifiers);	// Modifiers
   for (int j=0; j<6; j++)
   {
-    bluetooth.write(keyCodes[j]);  // up to six key codes, 0 is nothing
+    Serial1.write(keyCodes[j]);  // up to six key codes, 0 is nothing
   }
 
   return 1;
@@ -462,12 +462,12 @@ uint8_t makeyMateClass::keyRelease(uint8_t k)
     }
   }
   /* send the new report: */
-  bluetooth.write(0xFE);	// Keyboard Shorthand Mode
-  bluetooth.write(0x07);	// Length
-  bluetooth.write(modifiers);	// Modifiers
+  Serial1.write(0xFE);	// Keyboard Shorthand Mode
+  Serial1.write(0x07);	// Length
+  Serial1.write(modifiers);	// Modifiers
   for (int j=0; j<6; j++)
   {
-    bluetooth.write(keyCodes[j]);  // 6 possible scan codes
+    Serial1.write(keyCodes[j]);  // 6 possible scan codes
   }
 
   return 1;
@@ -487,36 +487,36 @@ uint8_t makeyMateClass::connect()
     delay(BLUETOOTH_RESPONSE_DELAY);
   }
   delay(BLUETOOTH_RESPONSE_DELAY);
-  bluetooth.flush();
+  Serial1.flush();
   
   /* get the remote address and print it in the serial monitor */
-  bluetooth.print("GR");  // Get the remote address
-  bluetooth.write('\r');
+  Serial1.print("GR");  // Get the remote address
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
-  if (bluetooth.peek() == 'N')  // Might say "No remote address stored */
+  if (Serial1.peek() == 'N')  // Might say "No remote address stored */
   {  // (bluetooth address is hex values only, so won'te start with 'N'.
     Serial.println("Can't connect. No paired device!");
-    bluetooth.flush();
-    bluetooth.print("---");  // exit command mode
-    bluetooth.write('\r');
+    Serial1.flush();
+    Serial1.print("---");  // exit command mode
+    Serial1.write('\r');
     return 0;  // No connect is attempted
   }
-  else if (bluetooth.available() == 0)  
+  else if (Serial1.available() == 0)  
   { // If we can't communicate with the module at all, print error
     Serial.println("ERROR!");
     return 0;  // return error
   }
   /* otherwise print the address we're trying to connect to */
   Serial.print("Attempting to connect to: ");
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());
+  while (Serial1.available())
+    Serial.write(Serial1.read());
     
   /* Attempt to connect */
-  bluetooth.print("C");  // The connect command
-  bluetooth.write('\r');
+  Serial1.print("C");  // The connect command
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
-  while (bluetooth.available())
-    Serial.write(bluetooth.read());  // Should print "TRYING"
+  while (Serial1.available())
+    Serial.write(Serial1.read());  // Should print "TRYING"
   
   return 1;
 }
@@ -525,11 +525,11 @@ uint8_t makeyMateClass::connect()
    give the RN-42 time to restart. */
 uint8_t makeyMateClass::reboot(void)
 {
-  if (bluetooth.available())
-    bluetooth.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
+  if (Serial1.available())
+    Serial1.flush();	// Get rid of any characters in the buffer, we'll need to check it fresh
 
-  bluetooth.print("R,1");  // reboot command
-  bluetooth.write('\r');
+  Serial1.print("R,1");  // reboot command
+  Serial1.write('\r');
   delay(BLUETOOTH_RESPONSE_DELAY);
   bluetoothReceive(rxBuffer);
 
@@ -549,9 +549,9 @@ uint8_t makeyMateClass::bluetoothReceive(char * dest)
 
   while ((--timeout > 0) && (c != 0x0A))
   {
-    if (bluetooth.available())
+    if (Serial1.available())
     {
-      c = bluetooth.read();
+      c = Serial1.read();
       if (c != 0x0D)
         dest[i++] = c;
       timeout = 1000;	// reset timeout

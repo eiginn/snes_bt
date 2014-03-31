@@ -49,12 +49,12 @@ int keyCodes[NUM_INPUTS] = {
   
   // female header on the back right side
   
-  MOUSE_MOVE_UP,      // pin A5
-  MOUSE_MOVE_DOWN,    // pin A4
-  MOUSE_MOVE_LEFT,    // pin A3
-  MOUSE_MOVE_RIGHT,   // pin A2
-  MOUSE_LEFT,         // pin A1
-  MOUSE_RIGHT         // pin A0
+  //MOUSE_MOVE_UP,      // pin A5
+  //MOUSE_MOVE_DOWN,    // pin A4
+  //MOUSE_MOVE_LEFT,    // pin A3
+  //MOUSE_MOVE_RIGHT,   // pin A2
+  //MOUSE_LEFT,         // pin A1
+  //MOUSE_RIGHT         // pin A0
 };
 
 ///////////////////////////
